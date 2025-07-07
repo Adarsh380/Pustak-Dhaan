@@ -9,6 +9,9 @@ import MyDonations from './pages/MyDonations'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Profile from './pages/Profile'
+import DonationDrives from './pages/DonationDrives'
+import AdminDashboard from './pages/AdminDashboard'
+import DonateBooks from './pages/DonateBooks'
 import './App.css'
 
 function App() {
@@ -56,12 +59,16 @@ function App() {
         <main className="container mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/donation-drives" element={<DonationDrives />} />
             <Route path="/books" element={<Books />} />
             <Route path="/login" element={
               user ? <Navigate to="/" /> : <Login setUser={setUser} />
             } />
             <Route path="/register" element={
               user ? <Navigate to="/" /> : <Register setUser={setUser} />
+            } />
+            <Route path="/donate-books" element={
+              user ? <DonateBooks /> : <Navigate to="/login" />
             } />
             <Route path="/add-book" element={
               user ? <AddBook /> : <Navigate to="/login" />
@@ -71,6 +78,9 @@ function App() {
             } />
             <Route path="/my-donations" element={
               user ? <MyDonations /> : <Navigate to="/login" />
+            } />
+            <Route path="/admin" element={
+              user && user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />
             } />
             <Route path="/profile" element={
               user ? <Profile user={user} /> : <Navigate to="/login" />

@@ -1,49 +1,49 @@
 const mongoose = require('mongoose');
 
-const donationSchema = new mongoose.Schema({
-  book: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Book',
-    required: true
-  },
+const donationRecordSchema = new mongoose.Schema({
   donor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  recipient: {
+  donationDrive: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'BookDonationDrive',
+    required: true
+  },
+  donationDate: {
+    type: Date,
+    required: true
+  },
+  booksCount: {
+    '2-4': { type: Number, default: 0 },
+    '4-6': { type: Number, default: 0 },
+    '6-8': { type: Number, default: 0 },
+    '8-10': { type: Number, default: 0 }
+  },
+  totalBooks: {
+    type: Number,
     required: true
   },
   status: {
     type: String,
-    enum: ['requested', 'approved', 'in-transit', 'completed', 'cancelled'],
-    default: 'requested'
+    enum: ['submitted', 'collected', 'allocated'],
+    default: 'submitted'
   },
-  requestMessage: {
+  collectedAt: Date,
+  notes: {
     type: String,
     trim: true
-  },
-  pickupMethod: {
-    type: String,
-    enum: ['pickup', 'delivery'],
-    required: true
-  },
-  pickupAddress: {
-    street: String,
-    city: String,
-    state: String,
-    zipCode: String
-  },
-  requestedAt: {
-    type: Date,
-    default: Date.now
-  },
-  approvedAt: Date,
-  completedAt: Date
+  }
 }, {
   timestamps: true
 });
 
-module.exports = mongoose.model('Donation', donationSchema);
+// Calculate total books before saving
+donationRecordSchema.pre('save', function(next) {
+  this.totalBooks = this.booksCount['2-4'] + this.booksCount['4-6'] + 
+                   this.booksCount['6-8'] + this.booksCount['8-10'];
+  next();
+});
+
+module.exports = mongoose.model('DonationRecord', donationRecordSchema);

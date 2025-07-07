@@ -6,12 +6,14 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "seed": "node seed.js",
+    "cleanup": "node cleanup.js",
+    "reset": "npm run cleanup && npm run seed",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["book-donation", "charity", "books", "express", "mongodb"],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",

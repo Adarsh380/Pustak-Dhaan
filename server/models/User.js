@@ -31,12 +31,21 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['donor', 'recipient', 'admin'],
+    enum: ['donor', 'admin', 'coordinator'],
     default: 'donor'
   },
   isActive: {
     type: Boolean,
     default: true
+  },
+  totalBooksDonatted: {
+    type: Number,
+    default: 0
+  },
+  badge: {
+    type: String,
+    enum: ['none', 'bronze', 'silver', 'gold'],
+    default: 'none'
   }
 }, {
   timestamps: true
@@ -58,6 +67,19 @@ userSchema.pre('save', async function(next) {
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Calculate and update badge based on total books donated
+userSchema.methods.updateBadge = function() {
+  if (this.totalBooksDonatted >= 100) {
+    this.badge = 'gold';
+  } else if (this.totalBooksDonatted >= 50) {
+    this.badge = 'silver';
+  } else if (this.totalBooksDonatted >= 10) {
+    this.badge = 'bronze';
+  } else {
+    this.badge = 'none';
+  }
 };
 
 module.exports = mongoose.model('User', userSchema);

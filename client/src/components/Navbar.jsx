@@ -16,13 +16,29 @@ function Navbar({ user, setUser }) {
           
           <div className="flex items-center space-x-4">
             <Link to="/" className="hover:text-blue-200">Home</Link>
-            <Link to="/books" className="hover:text-blue-200">Browse Books</Link>
+            <Link to="/donation-drives" className="hover:text-blue-200">Donation Drives</Link>
             
             {user ? (
               <>
-                <Link to="/add-book" className="hover:text-blue-200">Add Book</Link>
-                <Link to="/my-books" className="hover:text-blue-200">My Books</Link>
+                <Link to="/donate-books" className="hover:text-blue-200">Donate Books</Link>
                 <Link to="/my-donations" className="hover:text-blue-200">My Donations</Link>
+                {user.role === 'admin' && (
+                  <Link to="/admin" className="hover:text-blue-200">Admin</Link>
+                )}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm">
+                    {user.name}
+                    {user.badge && user.badge !== 'none' && (
+                      <span className={`ml-1 px-2 py-1 rounded text-xs ${
+                        user.badge === 'gold' ? 'bg-yellow-500' :
+                        user.badge === 'silver' ? 'bg-gray-300 text-gray-800' :
+                        'bg-orange-600'
+                      }`}>
+                        {user.badge.toUpperCase()}
+                      </span>
+                    )}
+                  </span>
+                </div>
                 <Link to="/profile" className="hover:text-blue-200">Profile</Link>
                 <button 
                   onClick={handleLogout}

@@ -15,10 +15,10 @@ const bookSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  genre: {
+  ageCategory: {
     type: String,
     required: true,
-    enum: ['Fiction', 'Non-Fiction', 'Science', 'Technology', 'History', 'Biography', 'Children', 'Academic', 'Other']
+    enum: ['2-4', '4-6', '6-8', '8-10']
   },
   condition: {
     type: String,
@@ -37,9 +37,13 @@ const bookSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  donationRecord: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'DonationRecord'
+  },
   status: {
     type: String,
-    enum: ['available', 'requested', 'donated'],
+    enum: ['available', 'donated', 'allocated'],
     default: 'available'
   },
   language: {
@@ -48,6 +52,10 @@ const bookSchema = new mongoose.Schema({
   },
   publicationYear: {
     type: Number
+  },
+  isNonAcademic: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true
