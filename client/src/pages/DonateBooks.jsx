@@ -16,6 +16,7 @@ function DonateBooks() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [driveDetails, setDriveDetails] = useState(null)
+  const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' })
 
   useEffect(() => {
     fetchDrives()
@@ -54,9 +55,10 @@ function DonateBooks() {
   }
 
   const handleBookCountChange = (category, value) => {
+    const numValue = value === '' ? 0 : parseInt(value);
     setBooksCount(prev => ({
       ...prev,
-      [category]: parseInt(value) || 0
+      [category]: isNaN(numValue) ? 0 : numValue
     }))
   }
 
@@ -67,18 +69,20 @@ function DonateBooks() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    setSubmitMessage({ type: '', text: '' }) // Clear previous messages
+    
     if (!selectedDrive) {
-      alert('Please select a donation drive')
+      setSubmitMessage({ type: 'error', text: 'Please select a donation drive' })
       return
     }
 
     if (!donationDate) {
-      alert('Please select a donation date')
+      setSubmitMessage({ type: 'error', text: 'Please select a donation date' })
       return
     }
 
     if (getTotalBooks() === 0) {
-      alert('Please enter at least one book to donate')
+      setSubmitMessage({ type: 'error', text: 'Please enter at least one book to donate' })
       return
     }
 
@@ -100,15 +104,17 @@ function DonateBooks() {
       })
 
       if (response.ok) {
-        alert('Donation submitted successfully!')
-        navigate('/my-donations')
+        setSubmitMessage({ type: 'success', text: 'Donation has been scheduled successfully.' })
+        setTimeout(() => {
+          navigate('/my-donations')
+        }, 2000)
       } else {
         const error = await response.json()
-        alert(error.message || 'Failed to submit donation')
+        setSubmitMessage({ type: 'error', text: error.message || 'Failed to submit donation' })
       }
     } catch (error) {
       console.error('Error submitting donation:', error)
-      alert('Failed to submit donation')
+      setSubmitMessage({ type: 'error', text: 'Failed to submit donation' })
     } finally {
       setSubmitting(false)
     }
@@ -203,8 +209,13 @@ function DonateBooks() {
                 <input
                   type="number"
                   min="0"
-                  value={count}
+                  value={count === 0 ? '' : count}
                   onChange={(e) => handleBookCountChange(category, e.target.value)}
+                  onFocus={(e) => {
+                    if (e.target.value === '0') {
+                      e.target.select();
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -237,6 +248,12 @@ function DonateBooks() {
             {submitting ? 'Submitting...' : 'Submit Donation'}
           </button>
         </div>
+
+        {submitMessage.text && (
+          <div className={`mt-4 p-4 rounded-md text-sm ${submitMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+            {submitMessage.text}
+          </div>
+        )}
       </form>
     </div>
   )

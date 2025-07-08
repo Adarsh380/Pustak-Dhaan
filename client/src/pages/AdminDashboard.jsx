@@ -9,6 +9,11 @@ function AdminDashboard() {
   const [coordinators, setCoordinators] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Message states for form submissions
+  const [driveMessage, setDriveMessage] = useState({ type: '', text: '' })
+  const [schoolMessage, setSchoolMessage] = useState({ type: '', text: '' })
+  const [allocationMessage, setAllocationMessage] = useState({ type: '', text: '' })
+
   // Form states
   const [driveForm, setDriveForm] = useState({
     name: '',
@@ -73,6 +78,7 @@ function AdminDashboard() {
 
   const handleCreateDrive = async (e) => {
     e.preventDefault()
+    setDriveMessage({ type: '', text: '' }) // Clear previous messages
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/drives/create', {
@@ -85,7 +91,7 @@ function AdminDashboard() {
       })
 
       if (response.ok) {
-        alert('Donation drive created successfully!')
+        setDriveMessage({ type: 'success', text: 'Donation drive created successfully!' })
         setDriveForm({
           name: '',
           description: '',
@@ -98,16 +104,17 @@ function AdminDashboard() {
         fetchData()
       } else {
         const error = await response.json()
-        alert(error.message || 'Failed to create drive')
+        setDriveMessage({ type: 'error', text: error.message || 'Failed to create drive' })
       }
     } catch (error) {
       console.error('Error creating drive:', error)
-      alert('Failed to create drive')
+      setDriveMessage({ type: 'error', text: 'Failed to create drive' })
     }
   }
 
   const handleCreateSchool = async (e) => {
     e.preventDefault()
+    setSchoolMessage({ type: '', text: '' }) // Clear previous messages
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/schools/create', {
@@ -120,7 +127,7 @@ function AdminDashboard() {
       })
 
       if (response.ok) {
-        alert('School created successfully!')
+        setSchoolMessage({ type: 'success', text: 'School created successfully!' })
         setSchoolForm({
           name: '',
           address: { street: '', city: '', state: '', zipCode: '' },
@@ -130,16 +137,52 @@ function AdminDashboard() {
         fetchData()
       } else {
         const error = await response.json()
-        alert(error.message || 'Failed to create school')
+        setSchoolMessage({ type: 'error', text: error.message || 'Failed to create school' })
       }
     } catch (error) {
       console.error('Error creating school:', error)
-      alert('Failed to create school')
+      setSchoolMessage({ type: 'error', text: 'Failed to create school' })
     }
   }
 
   const handleAllocateBooks = async (e) => {
     e.preventDefault()
+    setAllocationMessage({ type: '', text: '' }) // Clear previous messages
+    
+    // Validate allocation doesn't exceed available books
+    const selectedDrive = drives.find(drive => drive._id === allocationForm.donationDriveId);
+    if (selectedDrive) {
+      const allocatedFromDrive = allocations
+        .filter(allocation => allocation.donationDrive._id === selectedDrive._id)
+        .reduce((sum, allocation) => sum + allocation.totalBooksAllocated, 0);
+      const remainingBooks = Math.max(0, selectedDrive.totalBooksReceived - allocatedFromDrive);
+      const requestedTotal = Object.values(allocationForm.booksAllocated).reduce((sum, count) => sum + count, 0);
+      
+      if (requestedTotal > remainingBooks) {
+        setAllocationMessage({ 
+          type: 'error', 
+          text: `Cannot allocate ${requestedTotal} books. Only ${remainingBooks} books available from this drive.` 
+        });
+        return;
+      }
+      
+      // Validate by category
+      for (const [category, requestedCount] of Object.entries(allocationForm.booksAllocated)) {
+        const allocatedInCategory = allocations
+          .filter(allocation => allocation.donationDrive._id === selectedDrive._id)
+          .reduce((sum, allocation) => sum + (allocation.booksAllocated[category] || 0), 0);
+        const availableInCategory = Math.max(0, (selectedDrive.booksReceived?.[category] || 0) - allocatedInCategory);
+        
+        if (requestedCount > availableInCategory) {
+          setAllocationMessage({ 
+            type: 'error', 
+            text: `Cannot allocate ${requestedCount} books for age ${category}. Only ${availableInCategory} books available in this category.` 
+          });
+          return;
+        }
+      }
+    }
+    
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/allocations/allocate', {
@@ -152,7 +195,7 @@ function AdminDashboard() {
       })
 
       if (response.ok) {
-        alert('Books allocated successfully!')
+        setAllocationMessage({ type: 'success', text: 'Books allocated successfully!' })
         setAllocationForm({
           donationDriveId: '',
           schoolId: '',
@@ -162,11 +205,11 @@ function AdminDashboard() {
         fetchData()
       } else {
         const error = await response.json()
-        alert(error.message || 'Failed to allocate books')
+        setAllocationMessage({ type: 'error', text: error.message || 'Failed to allocate books' })
       }
     } catch (error) {
       console.error('Error allocating books:', error)
-      alert('Failed to allocate books')
+      setAllocationMessage({ type: 'error', text: 'Failed to allocate books' })
     }
   }
 
@@ -279,6 +322,15 @@ function AdminDashboard() {
               >
                 Create Drive
               </button>
+              {driveMessage.text && (
+                <div className={`mt-3 p-3 rounded-md md:col-span-2 ${
+                  driveMessage.type === 'success' 
+                    ? 'bg-green-50 text-green-800 border border-green-200' 
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {driveMessage.text}
+                </div>
+              )}
             </form>
           </div>
 
@@ -454,10 +506,19 @@ function AdminDashboard() {
               />
               <input
                 type="number"
-                placeholder="Number of Students"
-                value={schoolForm.studentsCount}
-                onChange={(e) => setSchoolForm({...schoolForm, studentsCount: parseInt(e.target.value) || 0})}
-                className="px-3 py-2 border border-gray-300 rounded-md"
+                placeholder="Number of students enrolled (e.g., 450)"
+                value={schoolForm.studentsCount === 0 ? '' : schoolForm.studentsCount}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                  setSchoolForm({...schoolForm, studentsCount: isNaN(value) ? 0 : value});
+                }}
+                onFocus={(e) => {
+                  if (e.target.value === '0') {
+                    e.target.select();
+                  }
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 md:col-span-2"
+                min="0"
                 required
               />
               <input
@@ -499,6 +560,15 @@ function AdminDashboard() {
               >
                 Add School
               </button>
+              {schoolMessage.text && (
+                <div className={`mt-3 p-3 rounded-md md:col-span-2 ${
+                  schoolMessage.type === 'success' 
+                    ? 'bg-green-50 text-green-800 border border-green-200' 
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {schoolMessage.text}
+                </div>
+              )}
             </form>
           </div>
 
@@ -519,7 +589,7 @@ function AdminDashboard() {
                       Contact Person
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Students
+                      Student Enrollment
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Books Received
@@ -539,10 +609,12 @@ function AdminDashboard() {
                         {school.contactPerson.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {school.studentsCount}
+                        <span className="font-medium">{school.studentsCount.toLocaleString()}</span>
+                        <span className="text-xs text-gray-400 block">students</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {school.totalBooksReceived}
+                        <span className="font-medium">{school.totalBooksReceived.toLocaleString()}</span>
+                        <span className="text-xs text-gray-400 block">books</span>
                       </td>
                     </tr>
                   ))}
@@ -567,11 +639,19 @@ function AdminDashboard() {
                   required
                 >
                   <option value="">Select Donation Drive</option>
-                  {drives.map(drive => (
-                    <option key={drive._id} value={drive._id}>
-                      {drive.name} - Available: {drive.totalBooksReceived} books
-                    </option>
-                  ))}
+                  {drives.map(drive => {
+                    // Calculate remaining books (total received minus already allocated)
+                    const allocatedFromDrive = allocations
+                      .filter(allocation => allocation.donationDrive._id === drive._id)
+                      .reduce((sum, allocation) => sum + allocation.totalBooksAllocated, 0);
+                    const remainingBooks = Math.max(0, drive.totalBooksReceived - allocatedFromDrive);
+                    
+                    return (
+                      <option key={drive._id} value={drive._id}>
+                        {drive.name} - Available: {remainingBooks} books
+                      </option>
+                    );
+                  })}
                 </select>
                 
                 <select
@@ -589,6 +669,56 @@ function AdminDashboard() {
                 </select>
               </div>
 
+              {/* Drive Details Section */}
+              {allocationForm.donationDriveId && (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <h3 className="font-medium text-blue-800 mb-3">Selected Drive Details</h3>
+                  {(() => {
+                    const selectedDrive = drives.find(drive => drive._id === allocationForm.donationDriveId);
+                    if (!selectedDrive) return null;
+                    
+                    const allocatedFromDrive = allocations
+                      .filter(allocation => allocation.donationDrive._id === selectedDrive._id)
+                      .reduce((sum, allocation) => sum + allocation.totalBooksAllocated, 0);
+                    const remainingBooks = Math.max(0, selectedDrive.totalBooksReceived - allocatedFromDrive);
+                    
+                    return (
+                      <div className="grid md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="space-y-2">
+                            <div><strong>Drive Name:</strong> {selectedDrive.name}</div>
+                            <div><strong>Location:</strong> {selectedDrive.location}</div>
+                            <div><strong>Total Books Received:</strong> {selectedDrive.totalBooksReceived}</div>
+                            <div><strong>Books Already Allocated:</strong> {allocatedFromDrive}</div>
+                            <div className="text-blue-700 font-semibold">
+                              <strong>Available for Allocation:</strong> {remainingBooks}
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="font-medium text-blue-800 mb-2">Books Available by Age Category:</div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            {Object.entries(selectedDrive.booksReceived || {'2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0}).map(([category, count]) => {
+                              const allocatedInCategory = allocations
+                                .filter(allocation => allocation.donationDrive._id === selectedDrive._id)
+                                .reduce((sum, allocation) => sum + (allocation.booksAllocated[category] || 0), 0);
+                              const availableInCategory = Math.max(0, count - allocatedInCategory);
+                              
+                              return (
+                                <div key={category} className="bg-white p-2 rounded border">
+                                  <div className="font-medium">Age {category}:</div>
+                                  <div>Available: <span className="text-blue-700 font-semibold">{availableInCategory}</span></div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div>
                 <h3 className="font-medium mb-2">Books to Allocate by Age Category</h3>
                 <div className="grid md:grid-cols-4 gap-4">
@@ -600,15 +730,23 @@ function AdminDashboard() {
                       <input
                         type="number"
                         min="0"
-                        value={count}
-                        onChange={(e) => setAllocationForm({
-                          ...allocationForm,
-                          booksAllocated: {
-                            ...allocationForm.booksAllocated,
-                            [category]: parseInt(e.target.value) || 0
+                        value={count === 0 ? '' : count}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          setAllocationForm({
+                            ...allocationForm,
+                            booksAllocated: {
+                              ...allocationForm.booksAllocated,
+                              [category]: isNaN(value) ? 0 : value
+                            }
+                          });
+                        }}
+                        onFocus={(e) => {
+                          if (e.target.value === '0') {
+                            e.target.select();
                           }
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
                   ))}
@@ -640,6 +778,15 @@ function AdminDashboard() {
               >
                 Allocate Books
               </button>
+              {allocationMessage.text && (
+                <div className={`mt-3 p-3 rounded-md ${
+                  allocationMessage.type === 'success' 
+                    ? 'bg-green-50 text-green-800 border border-green-200' 
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {allocationMessage.text}
+                </div>
+              )}
             </form>
           </div>
 
@@ -662,9 +809,6 @@ function AdminDashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -677,25 +821,20 @@ function AdminDashboard() {
                         {allocation.school.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="text-xs">
-                          <div>2-4: {allocation.booksAllocated['2-4']}</div>
-                          <div>4-6: {allocation.booksAllocated['4-6']}</div>
-                          <div>6-8: {allocation.booksAllocated['6-8']}</div>
-                          <div>8-10: {allocation.booksAllocated['8-10']}</div>
-                          <div className="font-semibold">Total: {allocation.totalBooksAllocated}</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {Object.entries(allocation.booksAllocated).map(([category, count]) => (
+                            <div key={category} className="bg-gray-50 p-2 rounded border">
+                              <div className="font-medium">Age {category}:</div>
+                              <div><span className="text-gray-700 font-semibold">{count}</span> books</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-gray-200 font-semibold text-gray-800">
+                          Total: {allocation.totalBooksAllocated} books
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(allocation.allocationDate).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          allocation.status === 'delivered' ? 'bg-green-100 text-green-800' : 
-                          allocation.status === 'allocated' ? 'bg-blue-100 text-blue-800' : 
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {allocation.status}
-                        </span>
                       </td>
                     </tr>
                   ))}

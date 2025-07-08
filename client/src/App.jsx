@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
+import AwardBanner from './components/AwardBanner'
 import Home from './pages/Home'
 import Books from './pages/Books'
 import AddBook from './pages/AddBook'
@@ -56,6 +57,7 @@ function App() {
     <Router>
       <div className="App">
         <Navbar user={user} setUser={setUser} />
+        <AwardBanner user={user} />
         <main className="container mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<Home />} />
