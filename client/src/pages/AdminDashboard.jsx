@@ -303,12 +303,14 @@ function AdminDashboard() {
                 className="px-3 py-2 border border-gray-300 rounded-md"
                 required
               />
+              <span className="text-xs text-gray-500 md:col-span-2 -mt-2 mb-2">Start Date: The first day the donation drive will accept book donations.</span>
               <input
                 type="date"
                 value={driveForm.endDate}
                 onChange={(e) => setDriveForm({...driveForm, endDate: e.target.value})}
                 className="px-3 py-2 border border-gray-300 rounded-md"
               />
+              <span className="text-xs text-gray-500 md:col-span-2 -mt-2 mb-2">End Date: The last day the donation drive will accept book donations.</span>
               <textarea
                 placeholder="Description"
                 value={driveForm.description}
