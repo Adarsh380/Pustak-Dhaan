@@ -3,9 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Navbar from './components/Navbar'
 import AwardBanner from './components/AwardBanner'
 import Home from './pages/Home'
-import Books from './pages/Books'
-import AddBook from './pages/AddBook'
-import MyBooks from './pages/MyBooks'
 import MyDonations from './pages/MyDonations'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -62,7 +59,6 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/donation-drives" element={<DonationDrives />} />
-            <Route path="/books" element={<Books />} />
             <Route path="/login" element={
               user ? <Navigate to="/" /> : <Login setUser={setUser} />
             } />
@@ -71,12 +67,6 @@ function App() {
             } />
             <Route path="/donate-books" element={
               user ? <DonateBooks /> : <Navigate to="/login" />
-            } />
-            <Route path="/add-book" element={
-              user ? <AddBook /> : <Navigate to="/login" />
-            } />
-            <Route path="/my-books" element={
-              user ? <MyBooks /> : <Navigate to="/login" />
             } />
             <Route path="/my-donations" element={
               user ? <MyDonations /> : <Navigate to="/login" />
