@@ -9,7 +9,9 @@
     "seed": "node seed.js",
     "cleanup": "node cleanup.js",
     "reset": "npm run cleanup && npm run seed",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "cd tests && npm test",
+    "test:watch": "cd tests && npm run test:watch",
+    "test:coverage": "cd tests && npm run test:coverage"
   },
   "keywords": [
     "book-donation",
