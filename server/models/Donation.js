@@ -21,6 +21,13 @@ const donationRecordSchema = new mongoose.Schema({
     '6-8': { type: Number, default: 0 },
     '8-10': { type: Number, default: 0 }
   },
+  // Track how many books from this donation have been allocated (per category)
+  allocatedCount: {
+    '2-4': { type: Number, default: 0 },
+    '4-6': { type: Number, default: 0 },
+    '6-8': { type: Number, default: 0 },
+    '8-10': { type: Number, default: 0 }
+  },
   totalBooks: {
     type: Number,
     required: true

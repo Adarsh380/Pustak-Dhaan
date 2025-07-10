@@ -3,6 +3,7 @@ const BookAllocation = require('../models/BookAllocation');
 const BookDonationDrive = require('../models/BookDonationDrive');
 const School = require('../models/School');
 const User = require('../models/User');
+const DonationRecord = require('../models/Donation');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 
@@ -75,13 +76,54 @@ router.post('/allocate', authenticateToken, async (req, res) => {
       }
     }
 
+    // Find donation records for this drive, sorted by donor and oldest first
+    const donationRecords = await DonationRecord.find({
+      donationDrive: donationDriveId,
+      status: { $in: ['submitted', 'collected'] }
+    }).sort({ donationDate: 1 });
+
+    // Track which donations are used for this allocation
+    const donationsUsed = [];
+    const booksToAllocate = { ...booksAllocated };
+    const booksAllocatedFromDonations = { '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 };
+
+    // For each category, allocate from donations in FIFO order
+    for (const category of Object.keys(booksToAllocate)) {
+      let needed = booksToAllocate[category];
+      for (const donation of donationRecords) {
+        if (needed <= 0) break;
+        const available = donation.booksCount[category] - (donation.allocatedCount?.[category] || 0);
+        if (available > 0) {
+          const take = Math.min(needed, available);
+          // Track allocation per donation
+          donation.allocatedCount = donation.allocatedCount || { '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 };
+          donation.allocatedCount[category] += take;
+          needed -= take;
+          booksAllocatedFromDonations[category] += take;
+          if (!donationsUsed.includes(donation._id)) {
+            donationsUsed.push(donation._id);
+          }
+        }
+      }
+      if (needed > 0) {
+        return res.status(400).json({ message: `Not enough donated books in category ${category} to allocate.` });
+      }
+    }
+
+    // Save updated allocatedCount for each used donation
+    for (const donationId of donationsUsed) {
+      const donation = donationRecords.find(d => d._id.equals(donationId));
+      await donation.save();
+    }
+
     const allocation = new BookAllocation({
       donationDrive: donationDriveId,
       school: schoolId,
       allocatedBy: req.user.userId,
       booksAllocated,
       totalBooksAllocated: totalAllocated,
-      notes
+      notes,
+      donationsUsed
     });
 
     await allocation.save();

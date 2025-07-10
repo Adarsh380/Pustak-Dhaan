@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 
 function MyDonations() {
   const [donations, setDonations] = useState([])
+  const [allocations, setAllocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     fetchDonations()
+    fetchAllocations()
   }, [])
 
   const fetchDonations = async () => {
@@ -33,6 +35,20 @@ function MyDonations() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchAllocations = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    try {
+      const response = await fetch('/api/donor/my-allocations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAllocations(data)
+      }
+    } catch {}
   }
 
   const getStatusColor = (status) => {
@@ -155,6 +171,29 @@ function MyDonations() {
               )}
             </div>
           ))}
+          {allocations.length > 0 && (
+            <div className="bg-blue-50 rounded-lg shadow-md p-6 mt-8">
+              <h2 className="text-lg font-bold mb-2 text-blue-900">Where your donated books reached</h2>
+              <ul className="space-y-2">
+                {allocations.map((a, idx) => (
+                  <li key={idx} className="flex flex-col md:flex-row md:items-center md:justify-between bg-white rounded p-3 border border-blue-100">
+                    <div>
+                      <span className="font-semibold text-blue-800">{a.school?.name}</span>
+                      {a.school?.address && (
+                        <span className="text-gray-500 ml-2">({a.school.address.city || ''})</span>
+                      )}
+                      <span className="ml-4 text-sm text-gray-600">via <span className="font-medium">{a.donationDrive?.name}</span></span>
+                    </div>
+                    <div className="text-sm text-gray-700 mt-2 md:mt-0">
+                      {Object.entries(a.booksAllocated).map(([cat, count]) => (
+                        <span key={cat} className="inline-block mr-2">{count} books (age {cat})</span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

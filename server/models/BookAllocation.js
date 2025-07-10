@@ -26,6 +26,10 @@ const bookAllocationSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  donationsUsed: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'DonationRecord'
+  }],
   allocationDate: {
     type: Date,
     default: Date.now

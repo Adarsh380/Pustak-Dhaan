@@ -105,6 +105,19 @@ router.get('/all', authenticateToken, async (req, res) => {
   }
 });
 
+// Public: Get all donation drives (any status)
+router.get('/', async (req, res) => {
+  try {
+    const drives = await BookDonationDrive.find()
+      .populate('coordinator', 'name email phone')
+      .populate('administrator', 'name email')
+      .sort({ createdAt: -1 });
+    res.json(drives);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching donation drives' });
+  }
+});
+
 // Get single donation drive
 router.get('/:id', async (req, res) => {
   try {
