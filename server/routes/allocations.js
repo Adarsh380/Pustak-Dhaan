@@ -52,16 +52,25 @@ router.post('/allocate', authenticateToken, async (req, res) => {
 
     // Check if enough books are available
     const totalAllocated = Object.values(booksAllocated).reduce((sum, count) => sum + count, 0);
-    
     if (totalAllocated === 0) {
       return res.status(400).json({ message: 'At least one book must be allocated' });
     }
 
+    // Calculate total allocated so far for this drive
+    const allocations = await BookAllocation.find({ donationDrive: donationDriveId });
+    const allocatedSoFar = { '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 };
+    allocations.forEach(a => {
+      for (const cat of Object.keys(allocatedSoFar)) {
+        allocatedSoFar[cat] += a.booksAllocated[cat] || 0;
+      }
+    });
+
     // Check availability for each category
     for (const category in booksAllocated) {
-      if (booksAllocated[category] > donationDrive.booksReceived[category]) {
-        return res.status(400).json({ 
-          message: `Not enough books in category ${category}. Available: ${donationDrive.booksReceived[category]}, Requested: ${booksAllocated[category]}` 
+      const available = (donationDrive.booksReceived[category] || 0) - (allocatedSoFar[category] || 0);
+      if (booksAllocated[category] > available) {
+        return res.status(400).json({
+          message: `Not enough books in category ${category}. Available: ${available}, Requested: ${booksAllocated[category]}`
         });
       }
     }
@@ -77,12 +86,9 @@ router.post('/allocate', authenticateToken, async (req, res) => {
 
     await allocation.save();
 
-    // Update donation drive available books
-    Object.keys(booksAllocated).forEach(category => {
-      donationDrive.booksReceived[category] -= booksAllocated[category];
-    });
-    donationDrive.totalBooksReceived -= totalAllocated;
-    await donationDrive.save();
+
+    // Do NOT decrement booksReceived or totalBooksReceived; they represent total donations.
+    // Available books = booksReceived - sum(allocated)
 
     // Update school total books received
     school.totalBooksReceived += totalAllocated;

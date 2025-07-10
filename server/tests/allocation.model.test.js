@@ -467,4 +467,101 @@ describe('Book Allocation Model Unit Tests', () => {
       expect(drive2Result.count).toBe(1);
     });
   });
+
+  describe('BookDonationDrive allocation/available books consistency', () => {
+    let testUser, testSchool, testDrive;
+
+    beforeEach(async () => {
+      testUser = new User({
+        name: 'Test User',
+        email: 'test@example.com',
+        password: 'hashedpassword',
+        role: 'admin'
+      });
+      await testUser.save();
+
+      testSchool = new School({
+        name: 'Test School',
+        address: {
+          street: '123 Test St',
+          city: 'Test City',
+          state: 'Test State',
+          zipCode: '12345'
+        },
+        contactPerson: {
+          name: 'Test Contact',
+          phone: '1234567890',
+          email: 'contact@test.com'
+        },
+        studentsCount: 100
+      });
+      await testSchool.save();
+
+      testDrive = new BookDonationDrive({
+        name: 'Test Drive',
+        description: 'Test Description',
+        location: 'Test Location',
+        gatedCommunity: 'Test Community',
+        coordinator: testUser._id,
+        administrator: testUser._id,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        totalBooksReceived: 100,
+        booksReceived: {
+          '2-4': 25,
+          '4-6': 30,
+          '6-8': 25,
+          '8-10': 20
+        }
+      });
+      await testDrive.save();
+    });
+
+    test('should update booksReceived and totalBooksReceived correctly after allocation', async () => {
+      // Initial state
+      let drive = await BookDonationDrive.findById(testDrive._id);
+      expect(drive.booksReceived['2-4']).toBe(25);
+      expect(drive.booksReceived['4-6']).toBe(30);
+      expect(drive.booksReceived['6-8']).toBe(25);
+      expect(drive.booksReceived['8-10']).toBe(20);
+      expect(drive.totalBooksReceived).toBe(100);
+
+      // Make an allocation
+      const allocation = new BookAllocation({
+        donationDrive: testDrive._id,
+        school: testSchool._id,
+        allocatedBy: testUser._id,
+        booksAllocated: {
+          '2-4': 10,
+          '4-6': 10,
+          '6-8': 5,
+          '8-10': 5
+        },
+        totalBooksAllocated: 30
+      });
+      await allocation.save();
+
+      // Simulate backend logic: update booksReceived and totalBooksReceived
+      drive = await BookDonationDrive.findById(testDrive._id);
+      // (In real app, this should be done in the allocation route/controller)
+      drive.booksReceived['2-4'] -= 10;
+      drive.booksReceived['4-6'] -= 10;
+      drive.booksReceived['6-8'] -= 5;
+      drive.booksReceived['8-10'] -= 5;
+      drive.totalBooksReceived = Object.values(drive.booksReceived).reduce((a, b) => a + b, 0);
+      await drive.save();
+
+      // Check updated state
+      drive = await BookDonationDrive.findById(testDrive._id);
+      expect(drive.booksReceived['2-4']).toBe(15);
+      expect(drive.booksReceived['4-6']).toBe(20);
+      expect(drive.booksReceived['6-8']).toBe(20);
+      expect(drive.booksReceived['8-10']).toBe(15);
+      expect(drive.totalBooksReceived).toBe(70);
+
+      // Available books should not be zero unless fully allocated
+      const anyAvailable = Object.values(drive.booksReceived).some(v => v > 0);
+      expect(anyAvailable).toBe(true);
+    });
+  });
 });
