@@ -213,6 +213,31 @@ function AdminDashboard() {
     }
   }
 
+  const recalculateTotals = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/donations/recalculate-totals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Drive totals recalculated successfully! Updated ${data.updatedDrives} drives.`)
+        fetchData() // Refresh the data
+      } else {
+        const error = await response.json()
+        alert(error.message || 'Failed to recalculate totals')
+      }
+    } catch (error) {
+      console.error('Error recalculating totals:', error)
+      alert('Failed to recalculate totals')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -224,10 +249,23 @@ function AdminDashboard() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">Admin Dashboard</h1>
-        <p className="text-gray-600">
-          Manage donation drives, schools, and book allocations.
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-4">Admin Dashboard</h1>
+            <p className="text-gray-600">
+              Manage donation drives, schools, and book allocations.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={recalculateTotals}
+              className="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 text-sm"
+              title="Recalculate all drive totals to fix any data inconsistencies"
+            >
+              🔄 Fix Data
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}

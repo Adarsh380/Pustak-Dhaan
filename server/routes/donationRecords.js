@@ -62,10 +62,18 @@ router.post('/submit', authenticateToken, async (req, res) => {
     await donor.save();
 
     // Update donation drive totals
-    Object.keys(booksCount).forEach(category => {
-      donationDrive.booksReceived[category] += booksCount[category];
+    // Ensure all categories are included in the update
+    const categories = ['2-4', '4-6', '6-8', '8-10'];
+    categories.forEach(category => {
+      const count = booksCount[category] || 0;
+      donationDrive.booksReceived[category] = (donationDrive.booksReceived[category] || 0) + count;
     });
-    donationDrive.totalBooksReceived += totalBooks;
+    
+    // Calculate totalBooksReceived from the sum of all categories to ensure consistency
+    donationDrive.totalBooksReceived = donationDrive.booksReceived['2-4'] + 
+                                      donationDrive.booksReceived['4-6'] + 
+                                      donationDrive.booksReceived['6-8'] + 
+                                      donationDrive.booksReceived['8-10'];
     await donationDrive.save();
 
     res.status(201).json({
@@ -144,6 +152,52 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error updating donation status:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Utility endpoint to recalculate drive totals (Admin only)
+router.post('/recalculate-totals', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const drives = await BookDonationDrive.find();
+    let updatedCount = 0;
+
+    for (const drive of drives) {
+      // Get all donations for this drive
+      const donations = await DonationRecord.find({ donationDrive: drive._id });
+      
+      // Reset totals
+      drive.booksReceived = { '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 };
+      drive.totalBooksReceived = 0;
+      
+      // Recalculate from donations
+      donations.forEach(donation => {
+        Object.keys(donation.booksCount).forEach(category => {
+          drive.booksReceived[category] = (drive.booksReceived[category] || 0) + donation.booksCount[category];
+        });
+      });
+      
+      // Calculate total from categories
+      drive.totalBooksReceived = drive.booksReceived['2-4'] + 
+                                drive.booksReceived['4-6'] + 
+                                drive.booksReceived['6-8'] + 
+                                drive.booksReceived['8-10'];
+      
+      await drive.save();
+      updatedCount++;
+    }
+
+    res.json({ 
+      message: 'Drive totals recalculated successfully', 
+      updatedDrives: updatedCount 
+    });
+  } catch (error) {
+    console.error('Error recalculating totals:', error);
+    res.status(500).json({ message: 'Server error during recalculation' });
   }
 });
 
