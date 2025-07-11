@@ -112,6 +112,7 @@ router.get('/all', authenticateToken, async (req, res) => {
 router.get('/my-donations', authenticateToken, async (req, res) => {
   try {
     const donations = await DonationRecord.find({ donor: req.user.userId })
+      .populate('donor', 'name email badge')
       .populate('donationDrive', 'name location gatedCommunity coordinator')
       .sort({ createdAt: -1 });
 
