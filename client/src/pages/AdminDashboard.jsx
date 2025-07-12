@@ -257,13 +257,7 @@ function AdminDashboard() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={recalculateTotals}
-              className="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 text-sm"
-              title="Recalculate all drive totals to fix any data inconsistencies"
-            >
-              🔄 Fix Data
-            </button>
+            {/* Removed Fix Data button as requested */}
           </div>
         </div>
       </div>
