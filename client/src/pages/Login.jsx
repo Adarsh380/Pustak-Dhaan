@@ -35,7 +35,12 @@ function Login({ setUser }) {
 
       if (response.ok) {
         localStorage.setItem('token', data.token)
-        setUser(data.user)
+        // Fetch user info with new token to ensure badge loads
+        const meRes = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${data.token}` }
+        })
+        const meData = await meRes.json()
+        setUser(meData)
         navigate('/')
       } else {
         setError(data.message || 'Login failed')
