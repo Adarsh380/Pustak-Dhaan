@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import App from '../App'
 
-function DonateBooks() {
+function DonateBooks({ setUser }) {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [drives, setDrives] = useState([])
@@ -105,6 +106,12 @@ function DonateBooks() {
 
       if (response.ok) {
         setSubmitMessage({ type: 'success', text: 'Donation has been scheduled successfully.' })
+        // Fetch updated user info to refresh badge
+        const meRes = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const meData = await meRes.json()
+        if (typeof setUser === 'function') setUser(meData)
         setTimeout(() => {
           navigate('/my-donations')
         }, 2000)

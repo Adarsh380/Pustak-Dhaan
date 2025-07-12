@@ -66,7 +66,7 @@ function App() {
               user ? <Navigate to="/" /> : <Register setUser={setUser} />
             } />
             <Route path="/donate-books" element={
-              user ? <DonateBooks /> : <Navigate to="/login" />
+              user ? <DonateBooks setUser={setUser} /> : <Navigate to="/login" />
             } />
             <Route path="/my-donations" element={
               user ? <MyDonations /> : <Navigate to="/login" />
