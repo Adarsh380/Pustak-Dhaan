@@ -202,6 +202,29 @@ function DonateBooks({ setUser }) {
                 <strong>Instructions:</strong> {driveDetails.instructions}
               </p>
             </div>
+            {/* Google Map Embed */}
+            <div className="mt-4">
+              <iframe
+                title="Drive Location Map"
+                width="100%"
+                height="250"
+                style={{ border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.google.com/maps?q=${encodeURIComponent(driveDetails.location)}&output=embed`}
+              ></iframe>
+              <div className="mt-2">
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(driveDetails.location)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline"
+                >
+                  Get Directions
+                </a>
+              </div>
+            </div>
           </div>
         )}
 
