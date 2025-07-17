@@ -24,6 +24,38 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+// Get all donors and their donations for a given drive (admin only)
+router.get('/donors/by-drive/:driveId', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+    const donations = await DonationRecord.find({
+      donationDrive: req.params.driveId,
+      status: { $in: ['submitted', 'collected'] }
+    })
+      .populate('donor', 'name email phone address role')
+      .sort({ donationDate: 1 });
+    const donorsMap = {};
+    donations.forEach(donation => {
+      const donorId = donation.donor._id;
+      if (!donorsMap[donorId]) {
+        donorsMap[donorId] = {
+          donor: donation.donor,
+          donations: []
+        };
+      }
+      donorsMap[donorId].donations.push(donation);
+    });
+    const donors = Object.values(donorsMap);
+    res.json(donors);
+  } catch (error) {
+    console.error('Error fetching donors for drive:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Allocate books to school (admin only)
 router.post('/allocate', authenticateToken, async (req, res) => {
   try {
