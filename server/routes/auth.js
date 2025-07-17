@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const nodemailer = require('nodemailer');
 const router = express.Router();
 
 // Register
@@ -133,6 +134,70 @@ router.get('/users', async (req, res) => {
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Forgot Password - send reset link
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ message: 'No user found with this email' });
+
+  // Generate a reset token (valid for 1 hour)
+  const resetToken = jwt.sign(
+    { userId: user._id },
+    process.env.JWT_SECRET || 'fallback_secret',
+    { expiresIn: '1h' }
+  );
+
+  const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+
+  // Send email with resetLink using nodemailer
+  try {
+    // Configure transporter (use environment variables for real credentials)
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER || 'your_email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your_email_password',
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'your_email@gmail.com',
+      to: user.email,
+      subject: 'PustakDhaan Password Reset',
+      html: `<p>Hello ${user.name},</p>
+        <p>You requested a password reset for your PustakDhaan account.</p>
+        <p>Click the link below to reset your password. This link is valid for 1 hour:</p>
+        <a href="${resetLink}">${resetLink}</a>
+        <p>If you did not request this, please ignore this email.</p>`
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Password reset link sent to your email.' });
+  } catch (err) {
+    console.error('Error sending email:', err);
+    res.status(500).json({ message: 'Error sending reset email. Please try again later.' });
+  }
+});
+
+// Reset Password
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ message: 'Token and new password are required' });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (error) {
+    res.status(400).json({ message: 'Invalid or expired token' });
   }
 });
 

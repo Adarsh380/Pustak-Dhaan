@@ -10,6 +10,8 @@ import Profile from './pages/Profile'
 import DonationDrives from './pages/DonationDrives'
 import AdminDashboard from './pages/AdminDashboard'
 import DonateBooks from './pages/DonateBooks'
+import ResetPassword from './pages/ResetPassword'
+import ForgotPassword from './pages/ForgotPassword'
 import './App.css'
 
 function App() {
@@ -77,6 +79,8 @@ function App() {
             <Route path="/profile" element={
               user ? <Profile user={user} /> : <Navigate to="/login" />
             } />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
           </Routes>
         </main>
       </div>

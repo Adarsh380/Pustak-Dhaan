@@ -101,6 +101,14 @@ function Login({ setUser }) {
       </form>
 
       <p className="text-center mt-4 text-gray-600">
+        <Link to="/forgot-password" className="text-blue-600 hover:underline">
+          Forgot password?
+        </Link>
+        <div className="text-xs text-gray-500 mt-2">
+          If you forgot your password, click above and follow the instructions to reset it.
+        </div>
+      </p>
+      <p className="text-center mt-4 text-gray-600">
         Don't have an account?{' '}
         <Link to="/register" className="text-blue-600 hover:underline">
           Register here

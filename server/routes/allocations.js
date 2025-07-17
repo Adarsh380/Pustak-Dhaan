@@ -142,6 +142,10 @@ router.post('/allocate', authenticateToken, async (req, res) => {
         .populate('donationDrive', 'name location')
         .populate('school', 'name address')
         .populate('allocatedBy', 'name email')
+        .populate({
+          path: 'donationsUsed',
+          populate: { path: 'donor', select: 'name email phone address role' }
+        })
     });
   } catch (error) {
     console.error('Error allocating books:', error);
