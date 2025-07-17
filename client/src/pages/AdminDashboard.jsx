@@ -742,7 +742,7 @@ function AdminDashboard() {
               <option value="">{!allocationForm.donationDriveId ? 'Select drive first' : donors.length === 0 ? 'No donors found' : 'Select Donor'}</option>
               {donors.map(donorObj => (
                 <option key={donorObj.donor._id} value={donorObj.donor._id}>
-                  {donorObj.donor.name} ({donorObj.donor.email})
+                  {donorObj.donor.name}
                 </option>
               ))}
             </select>
@@ -812,20 +812,32 @@ function AdminDashboard() {
                 </div>
               )}
 
-              {/* Donor Books Details */}
-              {allocationForm.donorId && (
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200 mb-4">
-                  <h3 className="font-medium text-green-800 mb-2">Books Donated by Selected Donor</h3>
-                  <div className="grid md:grid-cols-4 gap-4">
-                    {Object.entries(donorBooks).map(([category, count]) => (
-                      <div key={category} className="bg-white p-2 rounded border">
-                        <div className="font-medium">Age {category}:</div>
-                        <div>Available: <span className="text-green-700 font-semibold">{count}</span></div>
-                      </div>
-                    ))}
+              {/* Donor Details and Books */}
+              {allocationForm.donorId && (() => {
+                const donorObj = donors.find(d => d.donor._id === allocationForm.donorId);
+                if (!donorObj) return null;
+                const { name, email, phone, address } = donorObj.donor;
+                return (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200 mb-4">
+                    <h3 className="font-medium text-green-800 mb-2">Selected Donor Details</h3>
+                    <div className="mb-3 text-sm">
+                      <div><strong>Name:</strong> {name}</div>
+                      <div><strong>Address:</strong> {address?.street || ''}{address?.street ? ', ' : ''}{address?.city || ''}{address?.city ? ', ' : ''}{address?.state || ''}{address?.state ? ', ' : ''}{address?.zipCode || ''}</div>
+                      <div><strong>Email:</strong> {email}</div>
+                      <div><strong>Phone:</strong> {phone}</div>
+                    </div>
+                    <h4 className="font-medium text-green-800 mb-2 mt-2">Books Donated by Selected Donor</h4>
+                    <div className="grid md:grid-cols-4 gap-4">
+                      {Object.entries(donorBooks).map(([category, count]) => (
+                        <div key={category} className="bg-white p-2 rounded border">
+                          <div className="font-medium">Age {category}:</div>
+                          <div>Available: <span className="text-green-700 font-semibold">{count}</span></div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               <div>
                 <h3 className="font-medium mb-2">Books to Allocate by Age Category</h3>
                 <div className="grid md:grid-cols-4 gap-4">
