@@ -6,7 +6,9 @@ function AdminDashboard() {
   const [donations, setDonations] = useState([])
   const [schools, setSchools] = useState([])
   const [allocations, setAllocations] = useState([])
+  const [donors, setDonors] = useState([])
   const [coordinators, setCoordinators] = useState([])
+  const [donorBooks, setDonorBooks] = useState({ '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 });
   const [loading, setLoading] = useState(true)
 
   // Message states for form submissions
@@ -34,10 +36,60 @@ function AdminDashboard() {
 
   const [allocationForm, setAllocationForm] = useState({
     donationDriveId: '',
+    donorId: '',
     schoolId: '',
     booksAllocated: { '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 },
     notes: ''
   })
+  // Fetch donors when a drive is selected
+  useEffect(() => {
+    const fetchDonors = async () => {
+      if (!allocationForm.donationDriveId) {
+        setDonors([]);
+        setAllocationForm(f => ({ ...f, donorId: '' }));
+        setDonorBooks({ '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 });
+        return;
+      }
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/allocations/donors/by-drive/${allocationForm.donationDriveId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setDonors(data);
+        } else {
+          setDonors([]);
+        }
+      } catch (err) {
+        setDonors([]);
+      }
+    };
+    fetchDonors();
+  }, [allocationForm.donationDriveId]);
+
+  // Update donorBooks when donor is selected
+  useEffect(() => {
+    if (!allocationForm.donorId || !donors.length) {
+      setDonorBooks({ '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 });
+      return;
+    }
+    const donorObj = donors.find(d => d.donor._id === allocationForm.donorId);
+    if (!donorObj) {
+      setDonorBooks({ '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 });
+      return;
+    }
+    // Sum up available books by category for this donor (subtract already allocated)
+    const books = { '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 };
+    donorObj.donations.forEach(donation => {
+      for (const cat of Object.keys(books)) {
+        const total = donation.booksCount?.[cat] || 0;
+        const allocated = donation.allocatedCount?.[cat] || 0;
+        books[cat] += total - allocated;
+      }
+    });
+    setDonorBooks(books);
+  }, [allocationForm.donorId, donors]);
 
   useEffect(() => {
     fetchData()
@@ -149,37 +201,28 @@ function AdminDashboard() {
     e.preventDefault()
     setAllocationMessage({ type: '', text: '' }) // Clear previous messages
     
-    // Validate allocation doesn't exceed available books
-    const selectedDrive = drives.find(drive => drive._id === allocationForm.donationDriveId);
-    if (selectedDrive) {
-      const allocatedFromDrive = allocations
-        .filter(allocation => allocation.donationDrive._id === selectedDrive._id)
-        .reduce((sum, allocation) => sum + allocation.totalBooksAllocated, 0);
-      const remainingBooks = Math.max(0, selectedDrive.totalBooksReceived - allocatedFromDrive);
-      const requestedTotal = Object.values(allocationForm.booksAllocated).reduce((sum, count) => sum + count, 0);
-      
-      if (requestedTotal > remainingBooks) {
-        setAllocationMessage({ 
-          type: 'error', 
-          text: `Cannot allocate ${requestedTotal} books. Only ${remainingBooks} books available from this drive.` 
+    // Validate allocation doesn't exceed available books from donor
+    if (!allocationForm.donorId) {
+      setAllocationMessage({ type: 'error', text: 'Please select a donor.' });
+      return;
+    }
+    const requestedTotal = Object.values(allocationForm.booksAllocated).reduce((sum, count) => sum + count, 0);
+    const donorTotal = Object.values(donorBooks).reduce((sum, count) => sum + count, 0);
+    if (requestedTotal > donorTotal) {
+      setAllocationMessage({
+        type: 'error',
+        text: `Cannot allocate ${requestedTotal} books. Only ${donorTotal} books available from this donor.`
+      });
+      return;
+    }
+    for (const [category, requestedCount] of Object.entries(allocationForm.booksAllocated)) {
+      const available = donorBooks[category] || 0;
+      if (requestedCount > available) {
+        setAllocationMessage({
+          type: 'error',
+          text: `Cannot allocate ${requestedCount} books for age ${category}. Only ${available} books available from this donor in this category.`
         });
         return;
-      }
-      
-      // Validate by category
-      for (const [category, requestedCount] of Object.entries(allocationForm.booksAllocated)) {
-        const allocatedInCategory = allocations
-          .filter(allocation => allocation.donationDrive._id === selectedDrive._id)
-          .reduce((sum, allocation) => sum + (allocation.booksAllocated[category] || 0), 0);
-        const availableInCategory = Math.max(0, (selectedDrive.booksReceived?.[category] || 0) - allocatedInCategory);
-        
-        if (requestedCount > availableInCategory) {
-          setAllocationMessage({ 
-            type: 'error', 
-            text: `Cannot allocate ${requestedCount} books for age ${category}. Only ${availableInCategory} books available in this category.` 
-          });
-          return;
-        }
       }
     }
     
@@ -198,6 +241,7 @@ function AdminDashboard() {
         setAllocationMessage({ type: 'success', text: 'Books allocated successfully!' })
         setAllocationForm({
           donationDriveId: '',
+          donorId: '',
           schoolId: '',
           booksAllocated: { '2-4': 0, '4-6': 0, '6-8': 0, '8-10': 0 },
           notes: ''
@@ -661,47 +705,62 @@ function AdminDashboard() {
 
       {activeTab === 'allocations' && (
         <div className="space-y-8">
-          {/* Allocate Books Form */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Allocate Books to School</h2>
-            <form onSubmit={handleAllocateBooks} className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <select
-                  value={allocationForm.donationDriveId}
-                  onChange={(e) => setAllocationForm({...allocationForm, donationDriveId: e.target.value})}
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Select Donation Drive</option>
-                  {drives.map(drive => {
-                    // Calculate remaining books (total received minus already allocated)
-                    const allocatedFromDrive = allocations
-                      .filter(allocation => allocation.donationDrive._id === drive._id)
-                      .reduce((sum, allocation) => sum + allocation.totalBooksAllocated, 0);
-                    const remainingBooks = Math.max(0, drive.totalBooksReceived - allocatedFromDrive);
-                    
-                    return (
-                      <option key={drive._id} value={drive._id}>
-                        {drive.name} - Available: {remainingBooks} books
-                      </option>
-                    );
-                  })}
-                </select>
-                
-                <select
-                  value={allocationForm.schoolId}
-                  onChange={(e) => setAllocationForm({...allocationForm, schoolId: e.target.value})}
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Select School</option>
-                  {schools.map(school => (
-                    <option key={school._id} value={school._id}>
-                      {school.name} - {school.address.city}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      {/* Allocate Books Form */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-4">Allocate Books to School</h2>
+        <form onSubmit={handleAllocateBooks} className="space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <select
+              value={allocationForm.donationDriveId}
+              onChange={(e) => setAllocationForm({...allocationForm, donationDriveId: e.target.value, donorId: ''})}
+              className="px-3 py-2 border border-gray-300 rounded-md"
+              required
+            >
+              <option value="">Select Donation Drive</option>
+              {drives.map(drive => {
+                // Calculate remaining books (total received minus already allocated)
+                const allocatedFromDrive = allocations
+                  .filter(allocation => allocation.donationDrive._id === drive._id)
+                  .reduce((sum, allocation) => sum + allocation.totalBooksAllocated, 0);
+                const remainingBooks = Math.max(0, drive.totalBooksReceived - allocatedFromDrive);
+                return (
+                  <option key={drive._id} value={drive._id}>
+                    {drive.name} - Available: {remainingBooks} books
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Donor selection, shown only if drive is selected */}
+            <select
+              value={allocationForm.donorId}
+              onChange={e => setAllocationForm({...allocationForm, donorId: e.target.value})}
+              className="px-3 py-2 border border-gray-300 rounded-md"
+              required
+              disabled={!allocationForm.donationDriveId || donors.length === 0}
+            >
+              <option value="">{!allocationForm.donationDriveId ? 'Select drive first' : donors.length === 0 ? 'No donors found' : 'Select Donor'}</option>
+              {donors.map(donorObj => (
+                <option key={donorObj.donor._id} value={donorObj.donor._id}>
+                  {donorObj.donor.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={allocationForm.schoolId}
+              onChange={(e) => setAllocationForm({...allocationForm, schoolId: e.target.value})}
+              className="px-3 py-2 border border-gray-300 rounded-md"
+              required
+            >
+              <option value="">Select School</option>
+              {schools.map(school => (
+                <option key={school._id} value={school._id}>
+                  {school.name} - {school.address.city}
+                </option>
+              ))}
+            </select>
+          </div>
 
               {/* Drive Details Section */}
               {allocationForm.donationDriveId && (
@@ -753,6 +812,32 @@ function AdminDashboard() {
                 </div>
               )}
 
+              {/* Donor Details and Books */}
+              {allocationForm.donorId && (() => {
+                const donorObj = donors.find(d => d.donor._id === allocationForm.donorId);
+                if (!donorObj) return null;
+                const { name, email, phone, address } = donorObj.donor;
+                return (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200 mb-4">
+                    <h3 className="font-medium text-green-800 mb-2">Selected Donor Details</h3>
+                    <div className="mb-3 text-sm">
+                      <div><strong>Name:</strong> {name}</div>
+                      <div><strong>Address:</strong> {address?.street || ''}{address?.street ? ', ' : ''}{address?.city || ''}{address?.city ? ', ' : ''}{address?.state || ''}{address?.state ? ', ' : ''}{address?.zipCode || ''}</div>
+                      <div><strong>Email:</strong> {email}</div>
+                      <div><strong>Phone:</strong> {phone}</div>
+                    </div>
+                    <h4 className="font-medium text-green-800 mb-2 mt-2">Books Donated by Selected Donor</h4>
+                    <div className="grid md:grid-cols-4 gap-4">
+                      {Object.entries(donorBooks).map(([category, count]) => (
+                        <div key={category} className="bg-white p-2 rounded border">
+                          <div className="font-medium">Age {category}:</div>
+                          <div>Available: <span className="text-green-700 font-semibold">{count}</span></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <div>
                 <h3 className="font-medium mb-2">Books to Allocate by Age Category</h3>
                 <div className="grid md:grid-cols-4 gap-4">
@@ -764,9 +849,11 @@ function AdminDashboard() {
                       <input
                         type="number"
                         min="0"
+                        max={donorBooks[category] || 0}
                         value={count === 0 ? '' : count}
                         onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          let value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          if (value > (donorBooks[category] || 0)) value = donorBooks[category] || 0;
                           setAllocationForm({
                             ...allocationForm,
                             booksAllocated: {
