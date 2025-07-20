@@ -1,6 +1,6 @@
 # PustakDhaan - Book Donation Drive Management System 📚
 
-PustakDhaan is a comprehensive full-stack web application designed to manage book donation drives for communities. The name "PustakDhaan" comes from Hindi, where "Pustak" means book and "Dhaan" means donation. This system facilitates organized book collection and distribution to government schools.
+PustakDhaan is a comprehensive full-stack web application designed to manage book donation drives for communities. The name "PustakDhaan" comes from Sanskrit, where "Pustak" means book and "Dhaan" means donation. This system facilitates organized book collection and distribution to government schools.
 
 ## Features
 
